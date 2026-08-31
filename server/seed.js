@@ -14,13 +14,18 @@ const { saveCertificatePdf } = require('./utils/storage');
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/certify_db';
 
 const seedDatabase = async () => {
-  try {
-    console.log('[Seed] Connecting to MongoDB...');
-    await mongoose.connect(MONGODB_URI);
-    console.log('[Seed] Connected to MongoDB');
+  const isAlreadyConnected = mongoose.connection.readyState === 1;
 
-    // Clean existing seed users
+  try {
+    if (!isAlreadyConnected) {
+      console.log('[Seed] Connecting to MongoDB...');
+      await mongoose.connect(MONGODB_URI);
+      console.log('[Seed] Connected to MongoDB');
+    }
+
+    // Clean existing seed users and demo certificates
     await User.deleteMany({ email: { $in: ['admin@certify.com', 'user@certify.com'] } });
+    await Certificate.deleteMany({ certificateId: { $in: ['CERT-DEMO-001', 'CERT-DEMO-002', 'CERT-DEMO-003'] } });
 
     // 1. Create Admin User
     const admin = new User({
@@ -131,7 +136,7 @@ const seedDatabase = async () => {
   } catch (error) {
     console.error('[Seed Error]', error);
   } finally {
-    if (require.main === module) {
+    if (!isAlreadyConnected && require.main === module) {
       await mongoose.disconnect();
     }
   }
