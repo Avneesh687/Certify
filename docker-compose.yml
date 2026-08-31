@@ -1,0 +1,50 @@
+version: '3.8'
+
+services:
+  mongodb:
+    image: mongo:latest
+    container_name: certify-mongodb
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+    networks:
+      - certify-network
+
+  server:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    container_name: certify-server
+    ports:
+      - "5000:5000"
+    environment:
+      - PORT=5000
+      - MONGODB_URI=mongodb://mongodb:27017/certify_db
+      - JWT_SECRET=certify_docker_secret_key
+      - FRONTEND_URL=http://localhost:5173
+    depends_on:
+      - mongodb
+    volumes:
+      - ./server/uploads:/app/uploads
+    networks:
+      - certify-network
+
+  client:
+    build:
+      context: ./client
+      dockerfile: Dockerfile
+    container_name: certify-client
+    ports:
+      - "5173:5173"
+    depends_on:
+      - server
+    networks:
+      - certify-network
+
+networks:
+  certify-network:
+    driver: bridge
+
+volumes:
+  mongo_data:
