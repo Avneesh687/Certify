@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import api from '../api/axiosInstance';
+import api, { API_BASE_URL } from '../api/axiosInstance';
 import { Award, Search, Mail, Download, ExternalLink, RefreshCw, FileText, CheckCircle2, AlertTriangle, Clock, Eye, X, Trash2 } from 'lucide-react';
 
 export const DashboardPage = () => {
@@ -250,7 +250,7 @@ export const DashboardPage = () => {
 
                     <td className="px-6 py-4 text-right space-x-2 whitespace-nowrap">
                       <button
-                        onClick={() => setPreviewPdfUrl(`/api/verify/${cert.certificateId}/view`)}
+                        onClick={() => setPreviewPdfUrl(`${API_BASE_URL}/verify/${cert.certificateId}/view`)}
                         className="p-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition-colors"
                         title="View PDF Certificate"
                       >
@@ -258,7 +258,7 @@ export const DashboardPage = () => {
                       </button>
 
                       <a
-                        href={`/api/verify/${cert.certificateId}/download`}
+                        href={`${API_BASE_URL}/verify/${cert.certificateId}/download`}
                         download={`Certificate_${cert.certificateId}.pdf`}
                         target="_blank"
                         rel="noreferrer"

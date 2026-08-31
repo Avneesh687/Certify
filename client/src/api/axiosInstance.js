@@ -1,7 +1,21 @@
 import axios from 'axios';
 
+export const getApiBaseUrl = () => {
+  if (import.meta.env.VITE_API_BASE_URL) {
+    const rawUrl = import.meta.env.VITE_API_BASE_URL.replace(/\/+$/, '');
+    return rawUrl.endsWith('/api') ? rawUrl : `${rawUrl}/api`;
+  }
+  // Production fallback for Render live deployment
+  if (import.meta.env.PROD) {
+    return 'https://certify-eam5.onrender.com/api';
+  }
+  return '/api';
+};
+
+export const API_BASE_URL = getApiBaseUrl();
+
 const api = axios.create({
-  baseURL: '/api',
+  baseURL: API_BASE_URL,
   headers: {
     'Content-Type': 'application/json'
   }

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import axios from 'axios';
+import api, { API_BASE_URL } from '../api/axiosInstance';
 import { ShieldCheck, ShieldAlert, Award, Calendar, User, Download, ExternalLink, QrCode, Search, CheckCircle2, AlertTriangle, ArrowRight } from 'lucide-react';
 
 export const VerifyPage = () => {
@@ -26,7 +26,7 @@ export const VerifyPage = () => {
       setError('');
       setResult(null);
 
-      const res = await axios.get(`/api/verify/${encodeURIComponent(certId.trim())}`);
+      const res = await api.get(`/verify/${encodeURIComponent(certId.trim())}`);
       setResult(res.data);
     } catch (err) {
       if (err.response && err.response.data) {
@@ -165,7 +165,7 @@ export const VerifyPage = () => {
 
                 <div className="pt-4 border-t border-slate-800 flex items-center justify-between">
                   <a
-                    href={`/api/verify/${result.certificate.certificateId}/download`}
+                    href={`${API_BASE_URL}/verify/${result.certificate.certificateId}/download`}
                     className="gradient-btn w-full py-3 rounded-xl font-bold text-sm text-white text-center flex items-center justify-center space-x-2 shadow-lg shadow-sky-500/20"
                   >
                     <Download className="w-4 h-4" />
@@ -179,7 +179,7 @@ export const VerifyPage = () => {
                 <div className="p-4 bg-slate-900 border-b border-slate-800 flex items-center justify-between">
                   <span className="text-xs font-bold uppercase text-slate-300">Official PDF Preview</span>
                   <a
-                    href={`/api/verify/${result.certificate.certificateId}/view`}
+                    href={`${API_BASE_URL}/verify/${result.certificate.certificateId}/view`}
                     target="_blank"
                     rel="noreferrer"
                     className="text-xs text-sky-400 hover:underline flex items-center space-x-1"
@@ -190,7 +190,7 @@ export const VerifyPage = () => {
                 </div>
                 <div className="flex-1 bg-slate-950">
                   <iframe
-                    src={`/api/verify/${result.certificate.certificateId}/view`}
+                    src={`${API_BASE_URL}/verify/${result.certificate.certificateId}/view`}
                     title="Verified Certificate PDF"
                     className="w-full h-full border-none"
                   ></iframe>
