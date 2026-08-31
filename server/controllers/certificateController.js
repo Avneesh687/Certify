@@ -192,13 +192,29 @@ exports.bulkGenerateCertificates = async (req, res) => {
         }
       }
 
+      // Safe Date parsing
+      let parsedDate = new Date(rawDate);
+      if (isNaN(parsedDate.getTime())) {
+        parsedDate = new Date();
+      }
+
+      // Sanitize metadata
+      const cleanMetadata = new Map();
+      if (row && typeof row === 'object') {
+        for (const [k, v] of Object.entries(row)) {
+          if (v !== undefined && v !== null) {
+            cleanMetadata.set(String(k).replace(/\$/g, '_').replace(/\./g, '_'), String(v));
+          }
+        }
+      }
+
       // Record Certificate in Database with Cloudinary Public ID
       const cert = new Certificate({
         certificateId,
         recipientName: name,
         recipientEmail: email,
         eventName: event,
-        issueDate: new Date(rawDate) || new Date(),
+        issueDate: parsedDate,
         issuerName,
         issuerEmail: req.user.email,
         userId: req.user._id,
@@ -208,7 +224,7 @@ exports.bulkGenerateCertificates = async (req, res) => {
         qrCodeData: verificationUrl,
         emailStatus,
         emailErrorMessage,
-        metadata: new Map(Object.entries(row))
+        metadata: cleanMetadata
       });
 
       await cert.save();
@@ -233,6 +249,7 @@ exports.bulkGenerateCertificates = async (req, res) => {
       certificates: generatedCertificates
     });
   } catch (error) {
+    console.error('[Bulk Generation Error]:', error);
     res.status(500).json({ success: false, message: `Bulk generation failed: ${error.message}` });
   }
 };

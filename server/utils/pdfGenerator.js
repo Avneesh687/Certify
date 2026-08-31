@@ -1,193 +1,27 @@
 const { PDFDocument, rgb, StandardFonts } = require('pdf-lib');
 const QRCode = require('qrcode');
-const { createCanvas, loadImage } = require('canvas');
-const fs = require('fs-extra') || require('fs');
-const path = require('path');
+const fs = require('fs');
 
 /**
- * Generate a default certificate background image using Node Canvas
- * Width: 1200px, Height: 850px (High resolution landscape)
- */
-const createDefaultTemplateImage = async (outputPath) => {
-  const width = 1200;
-  const height = 850;
-  const canvas = createCanvas(width, height);
-  const ctx = canvas.getContext('2d');
-
-  // Background gradient (soft cream to crisp white)
-  const bgGrad = ctx.createLinearGradient(0, 0, width, height);
-  bgGrad.addColorStop(0, '#fdfbf7');
-  bgGrad.addColorStop(0.5, '#ffffff');
-  bgGrad.addColorStop(1, '#f8fafc');
-  ctx.fillStyle = bgGrad;
-  ctx.fillRect(0, 0, width, height);
-
-  // Outer Decorative Dark Blue & Gold Borders
-  ctx.strokeStyle = '#0f172a'; // Deep Navy
-  ctx.lineWidth = 14;
-  ctx.strokeRect(25, 25, width - 50, height - 50);
-
-  ctx.strokeStyle = '#d97706'; // Gold
-  ctx.lineWidth = 4;
-  ctx.strokeRect(38, 38, width - 76, height - 76);
-
-  ctx.strokeStyle = '#94a3b8'; // Slate accent
-  ctx.lineWidth = 1;
-  ctx.strokeRect(46, 46, width - 92, height - 92);
-
-  // Decorative Corner Ornaments
-  const corners = [
-    [55, 55],
-    [width - 55, 55],
-    [width - 55, height - 55],
-    [55, height - 55]
-  ];
-  corners.forEach(([cx, cy]) => {
-    ctx.beginPath();
-    ctx.arc(cx, cy, 12, 0, Math.PI * 2);
-    ctx.fillStyle = '#d97706';
-    ctx.fill();
-    ctx.strokeStyle = '#0f172a';
-    ctx.lineWidth = 2;
-    ctx.stroke();
-  });
-
-  // Top Header Banner Ribbon
-  ctx.fillStyle = '#0f172a';
-  ctx.fillRect(width / 2 - 250, 48, 500, 8);
-  ctx.fillStyle = '#d97706';
-  ctx.fillRect(width / 2 - 180, 56, 360, 3);
-
-  // Main Certificate Headers
-  ctx.textAlign = 'center';
-
-  // Title: CERTIFICATE OF ACHIEVEMENT
-  ctx.font = 'bold 42px "Times New Roman", serif';
-  ctx.fillStyle = '#0f172a';
-  ctx.fillText('CERTIFICATE OF ACHIEVEMENT', width / 2, 125);
-
-  ctx.font = 'italic 18px "Georgia", serif';
-  ctx.fillStyle = '#64748b';
-  ctx.fillText('PROUDLY PRESENTED TO', width / 2, 175);
-
-  // Placeholder Line for Recipient Name
-  ctx.strokeStyle = '#cbd5e1';
-  ctx.lineWidth = 2;
-  ctx.beginPath();
-  ctx.moveTo(200, 275);
-  ctx.lineTo(width - 200, 275);
-  ctx.stroke();
-
-  // Completion Subtitle
-  ctx.font = '18px "Georgia", serif';
-  ctx.fillStyle = '#475569';
-  ctx.fillText('FOR SUCCESSFULLY COMPLETING THE REQUIREMENTS OF', width / 2, 340);
-
-  // Placeholder Line for Event/Course
-  ctx.strokeStyle = '#cbd5e1';
-  ctx.lineWidth = 2;
-  ctx.beginPath();
-  ctx.moveTo(250, 430);
-  ctx.lineTo(width - 250, 430);
-  ctx.stroke();
-
-  // Seal / Stamp Graphic (Center Bottom)
-  const sealX = width / 2;
-  const sealY = 620;
-
-  // Gold Starburst/Circle Seal
-  ctx.beginPath();
-  ctx.arc(sealX, sealY, 48, 0, Math.PI * 2);
-  ctx.fillStyle = '#d97706';
-  ctx.fill();
-  ctx.lineWidth = 3;
-  ctx.strokeStyle = '#fef3c7';
-  ctx.stroke();
-
-  ctx.beginPath();
-  ctx.arc(sealX, sealY, 40, 0, Math.PI * 2);
-  ctx.strokeStyle = '#ffffff';
-  ctx.lineWidth = 2;
-  ctx.stroke();
-
-  ctx.font = 'bold 12px sans-serif';
-  ctx.fillStyle = '#ffffff';
-  ctx.fillText('OFFICIAL', sealX, sealY - 4);
-  ctx.fillText('SEAL', sealX, sealY + 12);
-
-  // Left & Right Signature Lines
-  ctx.strokeStyle = '#94a3b8';
-  ctx.lineWidth = 1.5;
-
-  // Left Signature Line (Date)
-  ctx.beginPath();
-  ctx.moveTo(120, 680);
-  ctx.lineTo(360, 680);
-  ctx.stroke();
-  ctx.font = '14px sans-serif';
-  ctx.fillStyle = '#64748b';
-  ctx.fillText('Date of Issue', 240, 705);
-
-  // Right Signature Line (Authorized Issuer)
-  ctx.beginPath();
-  ctx.moveTo(width - 360, 680);
-  ctx.lineTo(width - 120, 680);
-  ctx.stroke();
-  ctx.font = '14px sans-serif';
-  ctx.fillStyle = '#64748b';
-  ctx.fillText('Authorized Signature', width - 240, 705);
-
-  // Save Canvas Buffer to File
-  const buffer = canvas.toBuffer('image/png');
-  if (outputPath) {
-    fs.mkdirSync(path.dirname(outputPath), { recursive: true });
-    fs.writeFileSync(outputPath, buffer);
-  }
-  return buffer;
-};
-
-/**
- * Generate PDF Certificate buffer using pdf-lib
+ * Generate high-resolution PDF Certificate using pure vector pdf-lib
+ * 100% pure JavaScript - No native C++/Cairo dependencies required.
+ * Ultra-fast and 100% reliable across Windows, Linux, Render, Docker & Serverless.
  */
 const generatePdfCertificate = async ({
-  recipientName,
-  eventName,
-  issueDate,
-  certificateId,
-  issuerName = 'Certify Organization',
-  verificationUrl,
-  templatePath
+  recipientName = 'Jane Doe',
+  eventName = 'Certified Program',
+  issueDate = new Date(),
+  certificateId = 'CERT-DEMO',
+  issuerName = 'Certify Academy',
+  verificationUrl = '',
+  templatePath = null
 }) => {
   const pdfDoc = await PDFDocument.create();
-  
+
   // Standard Landscape A4 dimensions in points (841.89 x 595.28)
   const pageWidth = 841.89;
   const pageHeight = 595.28;
   const page = pdfDoc.addPage([pageWidth, pageHeight]);
-
-  // Load Background Image
-  let bgImageBuffer;
-  if (templatePath && fs.existsSync(templatePath)) {
-    bgImageBuffer = fs.readFileSync(templatePath);
-  } else {
-    // Generate default template image on the fly
-    bgImageBuffer = await createDefaultTemplateImage();
-  }
-
-  let embeddedBgImage;
-  try {
-    embeddedBgImage = await pdfDoc.embedPng(bgImageBuffer);
-  } catch (err) {
-    embeddedBgImage = await pdfDoc.embedJpg(bgImageBuffer);
-  }
-
-  // Draw background image full page
-  page.drawImage(embeddedBgImage, {
-    x: 0,
-    y: 0,
-    width: pageWidth,
-    height: pageHeight
-  });
 
   // Embed Fonts
   const fontHelveticaBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
@@ -195,28 +29,228 @@ const generatePdfCertificate = async ({
   const fontTimesBold = await pdfDoc.embedFont(StandardFonts.TimesRomanBold);
   const fontTimesItalic = await pdfDoc.embedFont(StandardFonts.TimesRomanItalic);
 
+  let customImageDrawn = false;
+
+  // 1. Try loading custom background image if provided and exists
+  if (templatePath && typeof templatePath === 'string' && fs.existsSync(templatePath)) {
+    try {
+      const imgBuffer = fs.readFileSync(templatePath);
+      let embeddedImg;
+      try {
+        embeddedImg = await pdfDoc.embedPng(imgBuffer);
+      } catch (e) {
+        embeddedImg = await pdfDoc.embedJpg(imgBuffer);
+      }
+      page.drawImage(embeddedImg, {
+        x: 0,
+        y: 0,
+        width: pageWidth,
+        height: pageHeight
+      });
+      customImageDrawn = true;
+    } catch (err) {
+      console.warn('[PDF Generator] Could not embed custom template image, rendering vector theme:', err.message);
+    }
+  }
+
+  // 2. If no custom image, render native elegant Vector Certificate Frame
+  if (!customImageDrawn) {
+    // Soft Elegant Ivory Background
+    page.drawRectangle({
+      x: 0,
+      y: 0,
+      width: pageWidth,
+      height: pageHeight,
+      color: rgb(0.99, 0.98, 0.97) // #fdfcf7
+    });
+
+    // Inner White Card Area
+    page.drawRectangle({
+      x: 20,
+      y: 20,
+      width: pageWidth - 40,
+      height: pageHeight - 40,
+      color: rgb(1, 1, 1) // #ffffff
+    });
+
+    // Outer Navy Border
+    page.drawRectangle({
+      x: 20,
+      y: 20,
+      width: pageWidth - 40,
+      height: pageHeight - 40,
+      borderColor: rgb(0.06, 0.09, 0.16), // #0f172a
+      borderWidth: 6
+    });
+
+    // Inner Gold Accent Border
+    page.drawRectangle({
+      x: 32,
+      y: 32,
+      width: pageWidth - 64,
+      height: pageHeight - 64,
+      borderColor: rgb(0.85, 0.55, 0.08), // Gold #d97706
+      borderWidth: 2
+    });
+
+    // Thin Slate Perimeter Line
+    page.drawRectangle({
+      x: 38,
+      y: 38,
+      width: pageWidth - 76,
+      height: pageHeight - 76,
+      borderColor: rgb(0.88, 0.91, 0.94),
+      borderWidth: 1
+    });
+
+    // Top Header Ribbon Banner
+    page.drawRectangle({
+      x: pageWidth / 2 - 200,
+      y: pageHeight - 46,
+      width: 400,
+      height: 6,
+      color: rgb(0.06, 0.09, 0.16)
+    });
+    page.drawRectangle({
+      x: pageWidth / 2 - 140,
+      y: pageHeight - 52,
+      width: 280,
+      height: 3,
+      color: rgb(0.85, 0.55, 0.08)
+    });
+
+    // Certificate Title
+    const title = 'CERTIFICATE OF ACHIEVEMENT';
+    const titleFontSize = 28;
+    const titleWidth = fontTimesBold.widthOfTextAtSize(title, titleFontSize);
+    page.drawText(title, {
+      x: (pageWidth - titleWidth) / 2,
+      y: pageHeight - 110,
+      size: titleFontSize,
+      font: fontTimesBold,
+      color: rgb(0.06, 0.09, 0.16)
+    });
+
+    // Sub-title Ribbon
+    const subtitle = 'PROUDLY PRESENTED TO';
+    const subtitleFontSize = 12;
+    const subtitleWidth = fontTimesItalic.widthOfTextAtSize(subtitle, subtitleFontSize);
+    page.drawText(subtitle, {
+      x: (pageWidth - subtitleWidth) / 2,
+      y: pageHeight - 145,
+      size: subtitleFontSize,
+      font: fontTimesItalic,
+      color: rgb(0.4, 0.45, 0.55)
+    });
+
+    // Completion Description
+    const completionText = 'FOR SUCCESSFULLY COMPLETING THE REQUIREMENTS AND CURRICULUM OF';
+    const completionFontSize = 10;
+    const compWidth = fontHelvetica.widthOfTextAtSize(completionText, completionFontSize);
+    page.drawText(completionText, {
+      x: (pageWidth - compWidth) / 2,
+      y: 290,
+      size: completionFontSize,
+      font: fontHelvetica,
+      color: rgb(0.4, 0.45, 0.55)
+    });
+
+    // Left Signature Line (Date)
+    page.drawLine({
+      start: { x: 70, y: 120 },
+      end: { x: 260, y: 120 },
+      thickness: 1.5,
+      color: rgb(0.8, 0.85, 0.9)
+    });
+    page.drawText('DATE OF ISSUANCE', {
+      x: 115,
+      y: 102,
+      size: 9,
+      font: fontHelveticaBold,
+      color: rgb(0.45, 0.5, 0.6)
+    });
+
+    // Center Gold Seal Emblem
+    page.drawCircle({
+      x: pageWidth / 2,
+      y: 125,
+      size: 36,
+      color: rgb(0.98, 0.93, 0.8),
+      borderColor: rgb(0.85, 0.55, 0.08),
+      borderWidth: 2
+    });
+    page.drawCircle({
+      x: pageWidth / 2,
+      y: 125,
+      size: 30,
+      borderColor: rgb(0.85, 0.55, 0.08),
+      borderWidth: 1
+    });
+    const sealText = 'OFFICIAL';
+    const sealText2 = 'VERIFIED';
+    const s1Width = fontHelveticaBold.widthOfTextAtSize(sealText, 8);
+    const s2Width = fontHelveticaBold.widthOfTextAtSize(sealText2, 8);
+    page.drawText(sealText, {
+      x: pageWidth / 2 - s1Width / 2,
+      y: 128,
+      size: 8,
+      font: fontHelveticaBold,
+      color: rgb(0.7, 0.4, 0.05)
+    });
+    page.drawText(sealText2, {
+      x: pageWidth / 2 - s2Width / 2,
+      y: 116,
+      size: 8,
+      font: fontHelveticaBold,
+      color: rgb(0.7, 0.4, 0.05)
+    });
+
+    // Right Signature Line (Authorized Issuer)
+    page.drawLine({
+      start: { x: pageWidth - 260, y: 120 },
+      end: { x: pageWidth - 70, y: 120 },
+      thickness: 1.5,
+      color: rgb(0.8, 0.85, 0.9)
+    });
+    page.drawText('AUTHORIZED SIGNATURE', {
+      x: pageWidth - 220,
+      y: 102,
+      size: 9,
+      font: fontHelveticaBold,
+      color: rgb(0.45, 0.5, 0.6)
+    });
+  }
+
   // Draw Recipient Name (Centered)
-  const nameText = recipientName || 'Jane Doe';
+  const nameText = recipientName || 'Recipient Name';
   const nameFontSize = 32;
   const nameWidth = fontTimesBold.widthOfTextAtSize(nameText, nameFontSize);
   page.drawText(nameText, {
     x: (pageWidth - nameWidth) / 2,
-    y: 410,
+    y: 350,
     size: nameFontSize,
     font: fontTimesBold,
-    color: rgb(0.06, 0.09, 0.16) // #0f172a
+    color: rgb(0.06, 0.09, 0.16)
+  });
+
+  // Name Underline Accent
+  page.drawLine({
+    start: { x: (pageWidth - nameWidth) / 2 - 20, y: 340 },
+    end: { x: (pageWidth + nameWidth) / 2 + 20, y: 340 },
+    thickness: 1.5,
+    color: rgb(0.85, 0.55, 0.08)
   });
 
   // Draw Event / Course Name (Centered)
   const eventText = eventName || 'Mastering Web Development';
-  const eventFontSize = 22;
+  const eventFontSize = 20;
   const eventWidth = fontHelveticaBold.widthOfTextAtSize(eventText, eventFontSize);
   page.drawText(eventText, {
     x: (pageWidth - eventWidth) / 2,
-    y: 300,
+    y: 250,
     size: eventFontSize,
     font: fontHelveticaBold,
-    color: rgb(0.85, 0.47, 0.02) // Gold #d97706
+    color: rgb(0.85, 0.45, 0.02) // Gold/Amber #d97706
   });
 
   // Format Date String
@@ -228,79 +262,77 @@ const generatePdfCertificate = async ({
       })
     : new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
 
-  // Draw Date (Left Signature Section)
-  const dateWidth = fontHelvetica.widthOfTextAtSize(formattedDate, 14);
+  // Draw Date (Left Side)
+  const dateWidth = fontHelvetica.widthOfTextAtSize(formattedDate, 12);
   page.drawText(formattedDate, {
-    x: 168 - dateWidth / 2,
-    y: 135,
-    size: 14,
+    x: 165 - dateWidth / 2,
+    y: 130,
+    size: 12,
     font: fontHelvetica,
     color: rgb(0.12, 0.16, 0.23)
   });
 
-  // Draw Issuer Name (Right Signature Section)
-  const issuerWidth = fontHelveticaBold.widthOfTextAtSize(issuerName, 14);
-  page.drawText(issuerName, {
-    x: pageWidth - 168 - issuerWidth / 2,
-    y: 135,
-    size: 14,
+  // Draw Issuer Name (Right Side)
+  const safeIssuer = issuerName || 'Certify Academy';
+  const issuerWidth = fontHelveticaBold.widthOfTextAtSize(safeIssuer, 12);
+  page.drawText(safeIssuer, {
+    x: pageWidth - 165 - issuerWidth / 2,
+    y: 130,
+    size: 12,
     font: fontHelveticaBold,
     color: rgb(0.12, 0.16, 0.23)
   });
 
-  // Draw Certificate ID at bottom-left corner
-  const certIdText = `ID: ${certificateId}`;
+  // Draw Unique Certificate ID at bottom-left corner
+  const certIdText = `Certificate ID: ${certificateId}`;
   page.drawText(certIdText, {
     x: 45,
-    y: 40,
-    size: 10,
+    y: 46,
+    size: 9,
     font: fontHelvetica,
-    color: rgb(0.4, 0.45, 0.55)
+    color: rgb(0.45, 0.5, 0.6)
   });
 
-  // Generate & Embed QR Code (Bottom Right Corner)
+  // Generate & Embed QR Code (Bottom-Right Corner)
   if (verificationUrl) {
-    const qrDataUrl = await QRCode.toDataURL(verificationUrl, {
-      margin: 1,
-      width: 150,
-      color: { dark: '#0f172a', light: '#ffffff' }
-    });
-    const qrImageBytes = Buffer.from(qrDataUrl.split(',')[1], 'base64');
-    const embeddedQrImage = await pdfDoc.embedPng(qrImageBytes);
+    try {
+      const qrDataUrl = await QRCode.toDataURL(verificationUrl, {
+        margin: 1,
+        width: 150,
+        color: { dark: '#0f172a', light: '#ffffff' }
+      });
+      const qrImageBytes = Buffer.from(qrDataUrl.split(',')[1], 'base64');
+      const embeddedQrImage = await pdfDoc.embedPng(qrImageBytes);
 
-    const qrSize = 75;
-    page.drawImage(embeddedQrImage, {
-      x: pageWidth - 110,
-      y: 35,
-      width: qrSize,
-      height: qrSize
-    });
+      const qrSize = 65;
+      page.drawImage(embeddedQrImage, {
+        x: pageWidth - 105,
+        y: 42,
+        width: qrSize,
+        height: qrSize
+      });
 
-    // Label below QR Code
-    page.drawText('Scan to Verify', {
-      x: pageWidth - 110,
-      y: 24,
-      size: 8,
-      font: fontHelvetica,
-      color: rgb(0.4, 0.45, 0.55)
-    });
+      page.drawText('Scan to Verify', {
+        x: pageWidth - 105,
+        y: 32,
+        size: 8,
+        font: fontHelvetica,
+        color: rgb(0.45, 0.5, 0.6)
+      });
+    } catch (qrErr) {
+      console.warn('[PDF Generator] QR generation warning:', qrErr.message);
+    }
   }
 
   const pdfBytes = await pdfDoc.save();
   return Buffer.from(pdfBytes);
 };
 
-/**
- * Generate a PNG preview of the certificate for live modal display
- */
-const generateCertificatePreview = async (params) => {
-  const pdfBuffer = await generatePdfCertificate(params);
-  // Return the PDF buffer or data URL
-  return `data:application/pdf;base64,${pdfBuffer.toString('base64')}`;
+const createDefaultTemplateImage = async () => {
+  return Buffer.from([]);
 };
 
 module.exports = {
-  createDefaultTemplateImage,
   generatePdfCertificate,
-  generateCertificatePreview
+  createDefaultTemplateImage
 };

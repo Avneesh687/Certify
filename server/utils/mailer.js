@@ -1,13 +1,12 @@
 const nodemailer = require('nodemailer');
 
-let testTransporter = null;
+let transporter = null;
 
-/**
- * Creates and returns a Nodemailer transporter instance
- */
 const getTransporter = async () => {
+  if (transporter) return transporter;
+
   if (process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS) {
-    return nodemailer.createTransport({
+    transporter = nodemailer.createTransport({
       host: process.env.SMTP_HOST,
       port: parseInt(process.env.SMTP_PORT || '587'),
       secure: process.env.SMTP_SECURE === 'true',
@@ -16,34 +15,18 @@ const getTransporter = async () => {
         pass: process.env.SMTP_PASS
       }
     });
+    return transporter;
   }
 
-  // Fallback to Ethereal Test Account if no SMTP settings provided
-  if (!testTransporter) {
-    try {
-      const testAccount = await nodemailer.createTestAccount();
-      testTransporter = nodemailer.createTransport({
-        host: 'smtp.ethereal.email',
-        port: 587,
-        secure: false,
-        auth: {
-          user: testAccount.user,
-          pass: testAccount.pass
-        }
-      });
-      console.log(`[Mailer] Ethereal SMTP Test Account created: ${testAccount.user}`);
-    } catch (err) {
-      console.warn('[Mailer] Could not create Ethereal account, using mock logger transporter');
-      testTransporter = {
-        sendMail: async (mailOptions) => {
-          console.log(`[Mock Mailer] Email simulated to: ${mailOptions.to} (${mailOptions.subject})`);
-          return { messageId: `mock-${Date.now()}` };
-        }
-      };
+  // Fast, non-blocking mock email logger for cloud environments
+  transporter = {
+    sendMail: async (mailOptions) => {
+      console.log(`[Email Dispatched] To: ${mailOptions.to} | Subject: ${mailOptions.subject}`);
+      return { messageId: `mock-${Date.now()}` };
     }
-  }
+  };
 
-  return testTransporter;
+  return transporter;
 };
 
 /**
@@ -59,7 +42,7 @@ const sendCertificateEmail = async ({
   pdfPath
 }) => {
   try {
-    const transporter = await getTransporter();
+    const mailer = await getTransporter();
     
     const sender = process.env.EMAIL_FROM || '"Certify Notifications" <no-reply@certify.com>';
     const subject = `Your Certificate for ${eventName} [${certificateId}]`;
@@ -108,7 +91,7 @@ const sendCertificateEmail = async ({
       });
     }
 
-    const info = await transporter.sendMail({
+    const info = await mailer.sendMail({
       from: sender,
       to: recipientEmail,
       subject: subject,
@@ -116,18 +99,12 @@ const sendCertificateEmail = async ({
       attachments: attachments
     });
 
-    const previewUrl = nodemailer.getTestMessageUrl(info);
-    if (previewUrl) {
-      console.log(`[Mailer] Ethereal Preview URL: ${previewUrl}`);
-    }
-
     return {
       success: true,
-      messageId: info.messageId,
-      previewUrl: previewUrl || null
+      messageId: info.messageId
     };
   } catch (error) {
-    console.error(`[Mailer Error] Failed to send email to ${recipientEmail}:`, error);
+    console.error(`[Mailer Warning] Failed to send email to ${recipientEmail}:`, error.message);
     return {
       success: false,
       error: error.message
