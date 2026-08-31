@@ -92,7 +92,7 @@ const seedDatabase = async () => {
 
     for (const [idx, recipient] of sampleRecipients.entries()) {
       const certId = `CERT-DEMO-00${idx + 1}`;
-      const verificationUrl = `${frontendUrl}/verify/${certId}`;
+      const verificationUrl = `${frontendUrl}/#/verify/${certId}`;
 
       const pdfBuffer = await generatePdfCertificate({
         recipientName: recipient.name,

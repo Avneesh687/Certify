@@ -61,7 +61,7 @@ exports.previewCertificate = async (req, res) => {
     } = req.body;
 
     const dummyCertId = `PREVIEW-${Math.floor(1000 + Math.random() * 9000)}`;
-    const verificationUrl = `${getFrontendUrl(req)}/verify/${dummyCertId}`;
+    const verificationUrl = `${getFrontendUrl(req)}/#/verify/${dummyCertId}`;
 
     let templatePath = null;
     if (templateId) {
@@ -150,7 +150,7 @@ exports.bulkGenerateCertificates = async (req, res) => {
 
       // Generate Unique Certificate ID
       const certificateId = `CERT-${Date.now().toString(36).toUpperCase()}-${uuidv4().substring(0, 5).toUpperCase()}`;
-      const verificationUrl = `${getFrontendUrl(req)}/verify/${certificateId}`;
+      const verificationUrl = `${getFrontendUrl(req)}/#/verify/${certificateId}`;
 
       // Generate PDF in Memory
       const pdfBuffer = await generatePdfCertificate({
