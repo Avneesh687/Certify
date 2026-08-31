@@ -131,7 +131,9 @@ const seedDatabase = async () => {
   } catch (error) {
     console.error('[Seed Error]', error);
   } finally {
-    await mongoose.disconnect();
+    if (require.main === module) {
+      await mongoose.disconnect();
+    }
   }
 };
 
